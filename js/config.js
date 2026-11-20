@@ -1,8 +1,4 @@
-// Backend address for future integration.
 
-export const API_BASE_URL = "http://localhost:3000/api";
+export const API_BASE_URL = "https://studenteventproposal8.onrender.com";
 
-// Activity 6 uses localStorage.
-// Backend integration will be introduced later.
-
-export const USE_BACKEND = false;
+export const USE_BACKEND = true;

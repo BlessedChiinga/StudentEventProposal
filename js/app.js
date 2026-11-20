@@ -498,31 +498,73 @@ function resetForm() {
 
 }
 
-
 // 16. HANDLE FORM SUBMISSION
 
 form.addEventListener("submit", async event => {
 
-    // PREVENT PAGE REFRESH
-
     event.preventDefault();
 
-
-    // COLLECT FORM INFORMATION
-
     const record = {
-
         title: titleInput.value.trim(),
-
         category: categoryInput.value.trim(),
-
         description: descriptionInput.value.trim(),
-
         status: statusInput.value
-
     };
 
+    const validationMessage = validateRecord(record);
 
+    if (validationMessage) {
+        showFormMessage(validationMessage, "error");
+        return;
+    }
+
+    try {
+
+        // Disable button while request is running.
+        submitButton.disabled = true;
+
+        if (recordIdInput.value) {
+
+            await recordService.update(
+                recordIdInput.value,
+                record
+            );
+
+            showFormMessage(
+                "Proposal updated successfully.",
+                "success"
+            );
+
+        } else {
+
+            await recordService.create(record);
+
+            showFormMessage(
+                "Proposal added successfully.",
+                "success"
+            );
+
+        }
+
+        resetForm();
+
+        await loadRecords();
+
+    } catch (error) {
+
+        showFormMessage(
+            error.message || "Something went wrong. Please try again.",
+            "error"
+        );
+
+    } finally {
+
+        // Re-enable button whether successful or not.
+        submitButton.disabled = false;
+
+    }
+
+});
     // VALIDATE INFORMATION
 
     const validationMessage =
@@ -590,7 +632,7 @@ form.addEventListener("submit", async event => {
 
     }
 
-});
+
 
 
 // 17. CANCEL EDITING
