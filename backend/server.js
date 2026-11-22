@@ -4,7 +4,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const pool = require("./db");
-const recordsRouter = require("./backend/routes/records");
+const recordsRouter = require("./routes/records");
 
 const app = express();
 
@@ -222,3 +222,21 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server listening on port ${PORT}`);
 });
+const API_URL = "/api/records";
+
+async function loadRecords() {
+  try {
+    const response = await fetch(API_URL);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const records = await response.json();
+    console.log("Records loaded:", records);
+
+    return records;
+  } catch (error) {
+    console.error("Failed to load records:", error);
+  }
+}
