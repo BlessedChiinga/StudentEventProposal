@@ -1,53 +1,63 @@
 
-USE student_events;
+-- ==========================================
+-- STUDENT EVENT PROPOSALS
+-- INITIAL DEMONSTRATION RECORDS
+-- Run this file only once
+-- ==========================================
 
-INSERT INTO records (title, category, description, status)
+USE student_event_proposals;
+
+INSERT INTO records
+    (title, category, description, status)
 VALUES
 (
-    'Annual Cultural Day',
-    'Cultural',
-    'An event celebrating different cultures through food, music and traditional dances.',
+    'Annual Campus Innovation Fair',
+    'Academic',
+    'A fair where students demonstrate creative projects, prototypes and new ideas.',
     'Pending'
 ),
 (
-    'Technology Innovation Fair',
-    'Technology',
-    'A student exhibition showcasing innovative technology projects and ideas.',
+    'Inter-Faculty Football Tournament',
+    'Sport',
+    'A football competition that brings together teams from different faculties.',
     'In progress'
 ),
 (
-    'End of Semester Party',
-    'Entertainment',
-    'A social event for students to relax and celebrate the end of the semester.',
-    'Completed'
-),
-(
-    'Career Development Workshop',
-    'Education',
-    'A workshop helping students develop professional and career skills.',
+    'Cultural Heritage Day',
+    'Culture',
+    'A celebration of traditional food, music, clothing and dance.',
     'Pending'
 ),
 (
-    'Interfaculty Football Tournament',
-    'Sports',
-    'A football competition involving students from different university faculties.',
+    'Student Debate Championship',
+    'Academic',
+    'A debate event that develops public speaking and critical thinking.',
+    'Completed'
+),
+(
+    'Campus Fitness Challenge',
+    'Sport',
+    'A friendly fitness challenge encouraging students to stay active and healthy.',
+    'Pending'
+),
+(
+    'Poetry and Open Mic Night',
+    'Culture',
+    'An evening where students share poetry, music and performances.',
     'In progress'
 ),
 (
-    'Student Entrepreneurship Expo',
-    'Business',
-    'An exhibition where students showcase business ideas and entrepreneurial projects.',
-    'Pending'
-),
-(
-    'Environmental Awareness Campaign',
-    'Environmental',
-    'A campaign promoting environmental protection and campus cleanliness.',
+    'Research and Technology Symposium',
+    'Academic',
+    'Students present research findings and discuss emerging technologies.',
     'Completed'
 ),
 (
-    'Music and Talent Show',
-    'Entertainment',
-    'A student talent event featuring music, dance and other performances.',
+    'Traditional Dance Showcase',
+    'Culture',
+    'Student groups perform traditional dances and explain their cultural significance.',
     'Pending'
 );
+
+-- Display all records
+SELECT * FROM records ORDER BY id;
