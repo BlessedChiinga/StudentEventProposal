@@ -1,7 +1,8 @@
 
 // ==========================================
-// STUDENT EVENT PROPOSALS
-// MAIN APPLICATION JAVASCRIPT
+// STUDENT EVENT PROPOSALS MANAGEMENT SYSTEM
+// ICT251 - ACTIVITY 8
+// FRONTEND AND BACKEND INTEGRATION
 // ==========================================
 
 
@@ -26,6 +27,8 @@ const statusInput = document.querySelector("#status");
 
 const formMessage = document.querySelector("#formMessage");
 
+const formHeading = document.querySelector("#formHeading");
+
 const submitButton = document.querySelector("#submitButton");
 
 const cancelEditButton = document.querySelector("#cancelEditButton");
@@ -48,10 +51,20 @@ const menuToggle = document.querySelector("#menuToggle");
 
 const mainNav = document.querySelector("#mainNav");
 
+const recordsMessage = document.querySelector("#recordsMessage");
 
-// 3. STORE ALL RECORDS IN MEMORY
+const retryButton = document.querySelector("#retryButton");
+
+
+// 3. APPLICATION STATE
 
 let allRecords = [];
+
+let isLoading = false;
+
+let isBusy = false;
+
+let hasLoadError = false;
 
 
 // 4. DISPLAY FORM MESSAGES
@@ -65,7 +78,75 @@ function showFormMessage(message, type = "") {
 }
 
 
-// 5. VALIDATE PROPOSAL INFORMATION
+// 5. DISPLAY RECORD MESSAGES
+
+function showRecordsMessage(message, type = "") {
+
+    recordsMessage.textContent = message;
+
+    recordsMessage.className = `message ${type}`;
+
+    recordsMessage.hidden = !message;
+
+}
+
+
+// 6. FRIENDLY ERROR MESSAGES
+
+function getErrorMessage(error) {
+
+    if (error instanceof TypeError) {
+
+        return "Could not connect to the server. Check your internet connection and try again. The server may be starting.";
+
+    }
+
+    if (error instanceof SyntaxError) {
+
+        return "The server returned an unexpected response. Please try again.";
+
+    }
+
+    return error.message ||
+        "Something went wrong. Please try again.";
+
+}
+
+
+// 7. CONTROL BUTTON AND FORM STATE
+
+function updateControls() {
+
+    const disabled = isBusy || isLoading;
+
+    submitButton.disabled = disabled;
+
+    cancelEditButton.disabled = disabled;
+
+    titleInput.disabled = disabled;
+
+    categoryInput.disabled = disabled;
+
+    descriptionInput.disabled = disabled;
+
+    statusInput.disabled = disabled;
+
+    retryButton.disabled = disabled;
+
+    recordsList.querySelectorAll("button").forEach(button => {
+
+        button.disabled = disabled;
+
+    });
+
+    form.setAttribute("aria-busy", String(isBusy));
+
+    recordsList.setAttribute("aria-busy", String(isLoading));
+
+}
+
+
+// 8. VALIDATE PROPOSAL INFORMATION
 
 function validateRecord(record) {
 
@@ -78,7 +159,6 @@ function validateRecord(record) {
 
     }
 
-
     if (
         record.category.length < 2 ||
         record.category.length > 40
@@ -87,7 +167,6 @@ function validateRecord(record) {
         return "Please select a valid category.";
 
     }
-
 
     if (
         record.description.length < 5 ||
@@ -98,54 +177,121 @@ function validateRecord(record) {
 
     }
 
-
     if (
         !["Pending", "In progress", "Completed"]
-        .includes(record.status)
+            .includes(record.status)
     ) {
 
         return "Please select a valid status.";
 
     }
 
-
     return "";
 
 }
 
 
-// 6. LOAD ALL RECORDS
+// 9. LOAD ALL RECORDS FROM THE LIVE API
 
 async function loadRecords() {
 
-    allRecords = await recordService.list();
+    if (isLoading) return false;
 
-    renderRecords();
+    isLoading = true;
 
-    renderStatistics();
+    hasLoadError = false;
+
+    retryButton.hidden = true;
+
+    emptyMessage.hidden = true;
+
+    resultCount.textContent = "Loading...";
+
+    recordsList.replaceChildren();
+
+    showRecordsMessage("Loading records... Please wait.");
+
+    updateControls();
+
+    try {
+
+        const records = await recordService.list();
+
+        if (!Array.isArray(records)) {
+
+            throw new Error(
+                "The server returned an invalid record list."
+            );
+
+        }
+
+        allRecords = records;
+
+        showRecordsMessage("");
+
+        return true;
+
+    } catch (error) {
+
+        hasLoadError = true;
+
+        allRecords = [];
+
+        showRecordsMessage(
+            "Could not load proposals. " +
+            getErrorMessage(error),
+            "error"
+        );
+
+        retryButton.hidden = false;
+
+        return false;
+
+    } finally {
+
+        isLoading = false;
+
+        renderRecords();
+
+        renderStatistics();
+
+        updateControls();
+
+    }
 
 }
 
 
-// 7. UPDATE DASHBOARD STATISTICS
+// 10. UPDATE DASHBOARD STATISTICS
 
 function renderStatistics() {
 
+    if (hasLoadError) {
+
+        document.querySelector("#totalStat").textContent = "—";
+
+        document.querySelector("#pendingStat").textContent = "—";
+
+        document.querySelector("#progressStat").textContent = "—";
+
+        document.querySelector("#completedStat").textContent = "—";
+
+        return;
+
+    }
+
     document.querySelector("#totalStat").textContent =
         allRecords.length;
-
 
     document.querySelector("#pendingStat").textContent =
         allRecords.filter(
             item => item.status === "Pending"
         ).length;
 
-
     document.querySelector("#progressStat").textContent =
         allRecords.filter(
             item => item.status === "In progress"
         ).length;
-
 
     document.querySelector("#completedStat").textContent =
         allRecords.filter(
@@ -155,7 +301,7 @@ function renderStatistics() {
 }
 
 
-// 8. CREATE STATUS LABEL
+// 11. CREATE STATUS LABEL
 
 function makeStatusBadge(status) {
 
@@ -171,7 +317,7 @@ function makeStatusBadge(status) {
 }
 
 
-// 9. CREATE ACTION BUTTONS
+// 12. CREATE ACTION BUTTONS
 
 function makeAction(label, action, id, extraClass = "") {
 
@@ -184,6 +330,7 @@ function makeAction(label, action, id, extraClass = "") {
 
     button.textContent = label;
 
+    button.disabled = isBusy || isLoading;
 
     button.addEventListener("click", () => {
 
@@ -191,15 +338,28 @@ function makeAction(label, action, id, extraClass = "") {
 
     });
 
-
     return button;
 
 }
 
 
-// 10. DISPLAY PROPOSALS
+// 13. DISPLAY PROPOSALS
 
 function renderRecords() {
+
+    if (isLoading) return;
+
+    recordsList.replaceChildren();
+
+    if (hasLoadError) {
+
+        resultCount.textContent = "Unavailable";
+
+        emptyMessage.hidden = true;
+
+        return;
+
+    }
 
     const searchTerm =
         searchInput.value.trim().toLowerCase();
@@ -224,11 +384,6 @@ function renderRecords() {
     });
 
 
-    // CLEAR OLD DISPLAY
-
-    recordsList.replaceChildren();
-
-
     // UPDATE NUMBER OF RESULTS
 
     resultCount.textContent =
@@ -237,7 +392,7 @@ function renderRecords() {
         }`;
 
 
-    // SHOW EMPTY MESSAGE IF NO RESULTS
+    // DISPLAY EMPTY MESSAGE
 
     emptyMessage.hidden =
         visibleRecords.length !== 0;
@@ -251,11 +406,9 @@ function renderRecords() {
 
         item.className = "record-item";
 
-
         const main = document.createElement("div");
 
         main.className = "record-main";
-
 
         const title = document.createElement("h4");
 
@@ -263,16 +416,13 @@ function renderRecords() {
 
         title.textContent = record.title;
 
-
         const meta = document.createElement("div");
 
         meta.className = "record-meta";
 
-
         const idText = document.createElement("span");
 
         idText.textContent = `ID: ${record.id}`;
-
 
         const category = document.createElement("span");
 
@@ -280,13 +430,11 @@ function renderRecords() {
 
         category.textContent = record.category;
 
-
         meta.append(
             idText,
             category,
             makeStatusBadge(record.status)
         );
-
 
         main.append(title, meta);
 
@@ -296,7 +444,6 @@ function renderRecords() {
         const actions = document.createElement("div");
 
         actions.className = "record-actions";
-
 
         actions.append(
 
@@ -308,7 +455,6 @@ function renderRecords() {
 
         );
 
-
         item.append(main, actions);
 
         recordsList.append(item);
@@ -318,176 +464,207 @@ function renderRecords() {
 }
 
 
-// 11. VIEW FULL PROPOSAL DETAILS
+// 14. VIEW FULL PROPOSAL DETAILS
+// GET /api/records/:id
 
 async function showDetails(id) {
 
-    try {
+    const record = await recordService.get(id);
 
-        const record = await recordService.get(id);
+    document.querySelector("#detailsTitle").textContent =
+        record.title;
 
+    document.querySelector("#detailsId").textContent =
+        record.id;
 
-        document.querySelector("#detailsTitle").textContent =
-            record.title;
+    document.querySelector("#detailsCategory").textContent =
+        record.category;
 
+    document.querySelector("#detailsStatus").textContent =
+        record.status;
 
-        document.querySelector("#detailsId").textContent =
-            record.id;
+    document.querySelector("#detailsDescription").textContent =
+        record.description;
 
-
-        document.querySelector("#detailsCategory").textContent =
-            record.category;
-
-
-        document.querySelector("#detailsStatus").textContent =
-            record.status;
-
-
-        document.querySelector("#detailsDescription").textContent =
-            record.description;
-
-
-        detailsDialog.showModal();
-
-    } catch (error) {
-
-        showFormMessage(error.message, "error");
-
-    }
+    detailsDialog.showModal();
 
 }
 
 
-// 12. EDIT A PROPOSAL
+// 15. EDIT A PROPOSAL
 
 async function startEditing(id) {
 
-    try {
+    const record = await recordService.get(id);
 
-        const record = await recordService.get(id);
+    recordIdInput.value = record.id;
 
+    titleInput.value = record.title;
 
-        // PUT EXISTING INFORMATION INTO FORM
+    // Support categories already stored in the database
 
-        recordIdInput.value = record.id;
+    const categoryExists = Array.from(categoryInput.options)
+        .some(option => option.value === record.category);
 
-        titleInput.value = record.title;
+    if (!categoryExists) {
 
-        categoryInput.value = record.category;
+        const option = document.createElement("option");
 
-        descriptionInput.value = record.description;
+        option.value = record.category;
 
-        statusInput.value = record.status;
+        option.textContent = record.category;
 
-
-        // CHANGE BUTTON TEXT
-
-        submitButton.textContent = "Update Proposal";
-
-
-        // SHOW CANCEL BUTTON
-
-        cancelEditButton.hidden = false;
-
-
-        showFormMessage(
-            "Editing proposal. Make your changes and select Update proposal.",
-            "success"
-        );
-
-
-        // SCROLL TO FORM
-
-        document.querySelector("#manage").scrollIntoView({
-            behavior: "smooth"
-        });
-
-
-        titleInput.focus();
-
-    } catch (error) {
-
-        showFormMessage(error.message, "error");
+        categoryInput.append(option);
 
     }
+
+    categoryInput.value = record.category;
+
+    descriptionInput.value = record.description;
+
+    statusInput.value = record.status;
+
+    formHeading.textContent = "Edit Proposal";
+
+    submitButton.textContent = "Update Proposal";
+
+    cancelEditButton.hidden = false;
+
+    descriptionCount.textContent =
+        `${descriptionInput.value.length}/300`;
+
+    showFormMessage(
+        "Editing proposal. Make your changes and select Update Proposal."
+    );
+
+    document.querySelector("#manage").scrollIntoView({
+
+        behavior: "smooth"
+
+    });
 
 }
 
 
-// 13. DELETE A PROPOSAL
+// 16. DELETE A PROPOSAL
+// DELETE /api/records/:id
 
 async function deleteRecord(id) {
 
     const record = allRecords.find(
-        item => item.id === Number(id)
+
+        item => Number(item.id) === Number(id)
+
     );
 
+    if (!record) {
 
-    if (!record) return;
+        throw new Error("Proposal not found.");
 
-
-    // ASK FOR CONFIRMATION
+    }
 
     const confirmed = window.confirm(
+
         `Are you sure you want to delete "${record.title}"?`
+
     );
-
-
-    // STOP IF USER SELECTS CANCEL
 
     if (!confirmed) return;
 
+    showRecordsMessage("Deleting proposal...");
 
-    try {
+    await recordService.remove(id);
 
-        await recordService.remove(id);
+    if (Number(recordIdInput.value) === Number(id)) {
 
-
-        showFormMessage(
-            "Proposal deleted successfully.",
-            "success"
-        );
-
-
-        await loadRecords();
-
-    } catch (error) {
-
-        showFormMessage(error.message, "error");
+        resetForm();
 
     }
+
+    const refreshed = await loadRecords();
+
+    showFormMessage(
+
+        refreshed
+            ? "Proposal deleted successfully."
+            : "Proposal deleted successfully, but the list could not refresh. Select Retry Connection.",
+
+        "success"
+
+    );
 
 }
 
 
-// 14. HANDLE RECORD ACTIONS
+// 17. HANDLE RECORD ACTIONS
 
 async function handleRecordAction(action, id) {
 
-    if (action === "view") {
+    if (isBusy || isLoading) return;
 
-        await showDetails(id);
+    isBusy = true;
 
-    }
+    updateControls();
 
+    try {
 
-    if (action === "edit") {
+        if (action === "view") {
 
-        await startEditing(id);
+            showRecordsMessage("Loading proposal details...");
 
-    }
+            await showDetails(id);
 
+            showRecordsMessage("");
 
-    if (action === "delete") {
+        }
 
-        await deleteRecord(id);
+        if (action === "edit") {
+
+            showRecordsMessage("Loading proposal...");
+
+            await startEditing(id);
+
+            showRecordsMessage("");
+
+        }
+
+        if (action === "delete") {
+
+            await deleteRecord(id);
+
+        }
+
+    } catch (error) {
+
+        showRecordsMessage(
+
+            getErrorMessage(error),
+
+            "error"
+
+        );
+
+    } finally {
+
+        isBusy = false;
+
+        updateControls();
+
+        if (
+            action === "edit" &&
+            Number(recordIdInput.value) === Number(id)
+        ) {
+
+            titleInput.focus();
+
+        }
 
     }
 
 }
 
 
-// 15. RESET FORM
+// 18. RESET FORM
 
 function resetForm() {
 
@@ -496,6 +673,8 @@ function resetForm() {
     recordIdInput.value = "";
 
     statusInput.value = "Pending";
+
+    formHeading.textContent = "Submit a Proposal";
 
     submitButton.textContent = "Save Proposal";
 
@@ -506,13 +685,14 @@ function resetForm() {
 }
 
 
-// 16. HANDLE FORM SUBMISSION
+// 19. HANDLE FORM SUBMISSION
+// POST AND PUT REQUESTS
 
 form.addEventListener("submit", async event => {
 
-    // PREVENT PAGE REFRESH
-
     event.preventDefault();
+
+    if (isBusy || isLoading) return;
 
 
     // COLLECT FORM INFORMATION
@@ -532,15 +712,16 @@ form.addEventListener("submit", async event => {
 
     // VALIDATE INFORMATION
 
-    const validationMessage =
-        validateRecord(record);
-
+    const validationMessage = validateRecord(record);
 
     if (validationMessage) {
 
         showFormMessage(
+
             validationMessage,
+
             "error"
+
         );
 
         return;
@@ -548,94 +729,161 @@ form.addEventListener("submit", async event => {
     }
 
 
+    // PREVENT DUPLICATE SUBMISSIONS
+
+    const editingId = recordIdInput.value;
+
+    isBusy = true;
+
+    updateControls();
+
+    submitButton.textContent = editingId
+
+        ? "Updating..."
+
+        : "Saving...";
+
+    showFormMessage("Please wait...");
+
+
     try {
 
-        // UPDATE OR CREATE RECORD
+        let savedRecord;
 
-        if (recordIdInput.value) {
+        if (editingId) {
 
-            await recordService.update(
-                recordIdInput.value,
+            // PUT - UPDATE EXISTING PROPOSAL
+
+            savedRecord = await recordService.update(
+
+                editingId,
+
                 record
-            );
 
-
-            showFormMessage(
-                "Proposal updated successfully.",
-                "success"
             );
 
         } else {
 
-            await recordService.create(record);
+            // POST - CREATE NEW PROPOSAL
 
-
-            showFormMessage(
-                "Proposal added successfully.",
-                "success"
-            );
+            savedRecord = await recordService.create(record);
 
         }
 
 
-        // CLEAR FORM
+        // BACKEND HAS CONFIRMED SUCCESS
+
+        const successMessage = editingId
+
+            ? `Proposal #${savedRecord.id} updated successfully.`
+
+            : `Proposal #${savedRecord.id} added successfully.`;
+
+
+        // CLEAR FORM ONLY AFTER SUCCESS
 
         resetForm();
 
 
-        // REFRESH DISPLAY
+        // REFRESH RECORDS FROM DATABASE
 
-        await loadRecords();
+        const refreshed = await loadRecords();
 
+        showFormMessage(
+
+            refreshed
+                ? successMessage
+                : successMessage +
+                  " The list could not refresh. Select Retry Connection.",
+
+            "success"
+
+        );
 
     } catch (error) {
 
+        // KEEP FORM INPUT IF REQUEST FAILS
+
         showFormMessage(
-            error.message || "Something went wrong. Please try again.",
+
+            getErrorMessage(error),
+
             "error"
+
         );
+
+    } finally {
+
+        // RESTORE BUTTON STATE
+
+        isBusy = false;
+
+        submitButton.textContent = recordIdInput.value
+
+            ? "Update Proposal"
+
+            : "Save Proposal";
+
+        updateControls();
 
     }
 
 });
 
 
-// 17. CANCEL EDITING
+// 20. CANCEL EDITING
 
 cancelEditButton.addEventListener("click", () => {
+
+    if (isBusy || isLoading) return;
 
     resetForm();
 
     showFormMessage(
+
         "Edit cancelled. No changes were saved."
+
     );
 
 });
 
 
-// 18. SEARCH PROPOSALS
+// 21. SEARCH PROPOSALS
 
 searchInput.addEventListener("input", renderRecords);
 
 
-// 19. FILTER PROPOSALS BY STATUS
+// 22. FILTER PROPOSALS BY STATUS
 
 statusFilter.addEventListener("change", renderRecords);
 
 
-// 20. DESCRIPTION CHARACTER COUNTER
+// 23. DESCRIPTION CHARACTER COUNTER
 
 descriptionInput.addEventListener("input", () => {
 
     descriptionCount.textContent =
+
         `${descriptionInput.value.length}/300`;
 
 });
 
 
-// 21. CLOSE DETAILS DIALOG
+// 24. RETRY DATABASE CONNECTION
+
+retryButton.addEventListener("click", () => {
+
+    if (isBusy || isLoading) return;
+
+    loadRecords();
+
+});
+
+
+// 25. CLOSE DETAILS DIALOG
 
 document.querySelector("#closeDialogButton")
+
     .addEventListener("click", () => {
 
         detailsDialog.close();
@@ -644,6 +892,7 @@ document.querySelector("#closeDialogButton")
 
 
 document.querySelector("#doneDialogButton")
+
     .addEventListener("click", () => {
 
         detailsDialog.close();
@@ -651,17 +900,20 @@ document.querySelector("#doneDialogButton")
     });
 
 
-// 22. MOBILE NAVIGATION
+// 26. MOBILE NAVIGATION
 
 menuToggle.addEventListener("click", () => {
 
     const isOpen =
+
         mainNav.classList.toggle("open");
 
-
     menuToggle.setAttribute(
+
         "aria-expanded",
+
         String(isOpen)
+
     );
 
 });
@@ -676,17 +928,18 @@ mainNav.querySelectorAll("a").forEach(link => {
         mainNav.classList.remove("open");
 
         menuToggle.setAttribute(
-            "aria-expanded",
-            "false"
-        );
 
+            "aria-expanded",
+
+            "false"
+
+        );
 
         mainNav.querySelectorAll("a").forEach(item => {
 
             item.classList.remove("active");
 
         });
-
 
         link.classList.add("active");
 
@@ -695,13 +948,6 @@ mainNav.querySelectorAll("a").forEach(link => {
 });
 
 
-// 23. START APPLICATION
+// 27. START APPLICATION
 
-loadRecords().catch(error => {
-
-    showFormMessage(
-        `Could not load proposals: ${error.message}`,
-        "error"
-    );
-
-});
+loadRecords();

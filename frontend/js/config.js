@@ -1,13 +1,9 @@
 
 // ==========================================
 // APPLICATION CONFIGURATION
+// ICT251 - ACTIVITY 8
 // ==========================================
 
-// Backend address for future integration.
+// Live backend API hosted on Render
 
-export const API_BASE_URL = "http://localhost:3000/api";
-
-// Activity 6 uses localStorage.
-// Backend integration will be introduced later.
-
-export const USE_BACKEND = false;
+export const API_BASE_URL = "https://studenteventproposal67.onrender.com";
